@@ -31,7 +31,7 @@ namespace MCISMc.Lockable
         private SerializedProperty _currentProperty;
 
         private bool IsLocked { get { return (this._lockableAttribute.IsLocked == LockableState.Locked) ? true : false; } }
-        private string LockableStateIcon { get { return IsLocked ? UNLOCKED_ICON : LOCKED_ICON; } }
+        private string LockableStateIcon { get { return IsLocked ? LOCKED_ICON : UNLOCKED_ICON; } }
         private string LockableStateMessage { get { return IsLocked ? "Unlock Selected Property" : "Lock Current Value"; } }
         private string ShowIconMessage { get { return LockableAttribute.ShowIcon ? "Hide LockableAttribute Icons" : "Show LockableAttribute Icons"; } }
 
@@ -51,6 +51,16 @@ namespace MCISMc.Lockable
             this._lockableAttribute = attribute as LockableAttribute;
             this._currentProperty = property;
 
+            // Disable LockableAttribute in Play Mode
+            if (Application.isPlaying)
+            {
+                EditorGUI.PropertyField(position, property, label, true);
+                label.image = null;
+                GUI.enabled = true;
+                EditorGUI.EndProperty();
+                return;
+            }
+
             // Context menu of the LockableAttribute on Mouse Right Click 
             if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && position.Contains(Event.current.mousePosition))
             {
@@ -68,13 +78,10 @@ namespace MCISMc.Lockable
                 }
 
                 context.AddSeparator("");
-
                 // Context menu item to toggle Show/Hide LockableAttribute Icons
                 context.AddItem(new GUIContent(ShowIconMessage), false, Toggle_ShowIcon());
-
                 // Context menu item to Reset LockableAttribute to default value
-                context.AddItem(new GUIContent("Reset LockableAttribute"), false, Reset_LockableAttribute());
-
+                // context.AddItem(new GUIContent("Reset LockableAttribute"), false, Reset_LockableAttribute());
                 context.ShowAsContext();
             }
 
@@ -96,10 +103,8 @@ namespace MCISMc.Lockable
             else label.image = null;
 
             EditorGUI.PropertyField(position, property, label, true);
-
             // Reset GUI Enabled State
             GUI.enabled = true;
-
             EditorGUI.EndProperty();
         }
 
@@ -190,8 +195,10 @@ namespace MCISMc.Lockable
             // Update the LockableAttribute's Lockable state for each tracked property
             foreach (SerializedProperty property in this._sceneProperties[scene])
             {
-                // Continue execution if value is null
-                if (property?.serializedObject?.targetObject == null) continue;
+                // return if value is null
+                if (property == null) continue;
+                if (property.serializedObject == null) continue;
+                if (property.serializedObject.targetObject == null) continue;
 
                 ulong targetObjectID = GetId(property.serializedObject.targetObject);
                 string propertySaveName = $"{targetObjectID}_{property.name}";
@@ -254,26 +261,26 @@ namespace MCISMc.Lockable
             string propertySaveName = $"{targetObjectID}_{ this._currentProperty.name}";
             this._savedLockableState[propertySaveName] = this._lockableAttribute.IsLocked;
 
-            GameObject go = (property.serializedObject.targetObject as MonoBehaviour)?.gameObject;
+            GameObject gameObject = (property.serializedObject.targetObject as MonoBehaviour)?.gameObject;
 
             // Return if GameObject is null or Scene is set to dirty
-            if (go == null || !go.scene.isDirty) return;
+            if (gameObject == null || !gameObject.scene.isDirty) return;
 
             // Save Scene Data if not already saved
             if (this._sceneProperties.Keys.Count == 0)
                 EditorSceneManager.sceneSaved += UpdateOnSceneSave;
 
             // If Scene Data is saved, update the sceneProperties dictionary
-            if (this._sceneProperties.ContainsKey(go.scene))
+            if (this._sceneProperties.ContainsKey(gameObject.scene))
             {
-                if (!this._sceneProperties[go.scene].Contains(property))
+                if (!this._sceneProperties[gameObject.scene].Contains(property))
                 {
-                    this._sceneProperties[go.scene].Add(property);
+                    this._sceneProperties[gameObject.scene].Add(property);
                 }
             }
             else
             {
-                this._sceneProperties[go.scene] = new List<SerializedProperty>() { property };
+                this._sceneProperties[gameObject.scene] = new List<SerializedProperty>() { property };
             }
         }
 

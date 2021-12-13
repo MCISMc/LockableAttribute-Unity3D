@@ -19,7 +19,6 @@ namespace MCISMc.Lockable
         /// LockableAttribute Property Constructor to set the locked state of the property
         /// </summary>
         /// <param name="lockState">Default State of the LockableAttribute</param>
-        /// <param name="rememberSelection"></param>
         public LockableAttribute(LockableState lockState = LockableState.Unlocked)
         {
             this.IsLocked = lockState;
